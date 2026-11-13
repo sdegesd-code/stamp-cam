@@ -244,7 +244,13 @@ async function refreshPlace(){
 }
 
 async function start(){
-  const watch=()=>{clearTimeout(cam._chk);cam._chk=setTimeout(()=>{if(!cam.videoWidth)toast('Camera not showing — tap the screen to retry')},3000)};
+  const watch=()=>{clearTimeout(cam._chk);cam._chk=setTimeout(()=>{if(!cam.videoWidth)toast('Camera not showing — tap to retry, or reset site permission')},3000)};
+  try{
+    if(navigator.permissions&&navigator.permissions.query){
+      const ps=await navigator.permissions.query({name:'camera'});
+      if(ps.state==='denied'){const x=$('err');x.style.display='grid';x.textContent='Camera is blocked for this site. In your browser, open Site settings for this site and allow Camera, then reload.';return}
+    }
+  }catch(e){}
   try{
     if(stream)stream.getTracks().forEach(t=>t.stop());
     stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:facing},width:{ideal:1920},height:{ideal:1080}},audio:false});
@@ -257,6 +263,10 @@ async function start(){
     }catch(e2){const x=$('err');x.style.display='grid';x.textContent='Camera access is blocked. Allow camera permission for this site in your browser settings, then reload. (Camera needs HTTPS, which GitHub Pages provides.)'}
   }
 }
+// Release the camera when the app goes to the background, so an old copy cannot keep holding it.
+function stopCam(){clearTimeout(cam._chk);if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}}
+document.addEventListener('visibilitychange',()=>{if(document.hidden)stopCam();else if(!stream||!stream.active)start()});
+window.addEventListener('pagehide',stopCam);
 function startGps(){
   if(gpsWatch!==null)navigator.geolocation.clearWatch(gpsWatch);
   gpsErr='';
