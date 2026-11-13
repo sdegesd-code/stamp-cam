@@ -27,6 +27,16 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .ico{width:46px;height:46px;border-radius:50%;background:var(--glass);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--line);display:grid;place-items:center}
 .chg{height:46px;padding:0 14px;border-radius:999px;background:var(--glass);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--line);font-weight:700;font-size:13.5px}
 .chg.on{background:var(--stamp);border-color:var(--stamp);color:#1a1200}
+.coords{margin:6px 0 0;font-size:13px;color:var(--dim)}
+.pick{position:fixed;inset:0;background:#000;display:none;flex-direction:column;z-index:8}
+.pick.open{display:flex}
+#pickMap{flex:1;min-height:0;background:#111}
+.pickBar{display:flex;gap:10px;padding:12px 16px calc(env(safe-area-inset-bottom,0px) + 14px);background:#16181d}
+.pickBar button{flex:1;padding:13px;border-radius:14px;font-weight:700;font-size:15px;border:0}
+.pickBar .use{background:var(--stamp);color:#1a1200}
+.pickBar .cancel{background:#2a2e35;color:#fff}
+.pickHint{position:absolute;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 14px);background:#000c;color:#fff;padding:8px 14px;border-radius:999px;font-size:13px;pointer-events:none;z-index:9;max-width:92%;text-align:center}
+.pickPin{width:26px;height:36px;background:#e53935;border:2px solid #fff;border-radius:50% 50% 50% 0;transform:rotate(-45deg)}
 .ico svg{width:22px;height:22px;stroke:#fff;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .ico.on{background:var(--stamp);border-color:var(--stamp)}.ico.warn{border-color:#ff5252}.ico.on svg{stroke:#1a1200}
 .shutter{width:78px;height:78px;border-radius:50%;background:transparent;border:4px solid #fff;padding:5px}
@@ -104,15 +114,23 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
   <p>Set a time and location of your choice to stamp instead of the phone clock and live GPS. The photo looks exactly the same as the normal stamp. Leave blank to use live values.</p>
   <label for="mtime">Date &amp; time</label>
   <input type="datetime-local" id="mtime">
-  <label for="mlat">Latitude</label>
-  <input type="text" id="mlat" placeholder="e.g. 26.123456" inputmode="decimal" autocomplete="off">
-  <label for="mlng">Longitude</label>
-  <input type="text" id="mlng" placeholder="e.g. 90.123456" inputmode="decimal" autocomplete="off">
+  <label>Location</label>
+  <button class="done" id="pickBtn" type="button" style="margin-top:6px">Choose on map</button>
+  <div class="coords" id="coords">Using live GPS</div>
+  <input type="hidden" id="mlat"><input type="hidden" id="mlng">
   <label for="mplace">Place name</label>
   <input type="text" id="mplace" placeholder="e.g. village / locality name" autocomplete="off">
   <button class="done" id="chgClear" style="background:#2a2e35;color:#fff">Use live time &amp; GPS</button>
   <button class="done" id="chgDone">Done</button>
 </div></div>
+<div class="pick" id="pick">
+  <div id="pickMap"></div>
+  <div class="pickHint" id="pickHint">Drag the pin or tap the map to choose</div>
+  <div class="pickBar">
+    <button class="cancel" id="pickCancel" type="button">Cancel</button>
+    <button class="use" id="pickUse" type="button">Use this location</button>
+  </div>
+</div>
 <div class="err" id="err"></div>
 <div class="toast" id="toast"></div>
 
@@ -127,6 +145,40 @@ const opt={note:store.get('note')??'Captured by Stamp Cam',map:store.get('map')|
 const manualLoc=()=>opt.mlat!==''&&opt.mlng!==''&&!isNaN(+opt.mlat)&&!isNaN(+opt.mlng);
 const effPos=()=>manualLoc()?{lat:+opt.mlat,lng:+opt.mlng,acc:0,t:Date.now()}:pos;
 const effTime=()=>opt.mtime?new Date(opt.mtime):new Date();
+// Map picker: choose the location on a map instead of typing it.
+// Leaflet is loaded on demand only (needs internet, like the map tiles and reverse lookup).
+let pickMap=null,pickMarker=null;
+function loadLeaflet(){
+  return new Promise((res,rej)=>{
+    if(window.L)return res();
+    const l=document.createElement('link');l.rel='stylesheet';l.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';document.head.appendChild(l);
+    const s=document.createElement('script');s.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';s.onload=()=>res();s.onerror=()=>rej(new Error('map'));document.head.appendChild(s);
+  });
+}
+function showCoords(){
+  $('coords').textContent=manualLoc()?('Lat '+Number(opt.mlat).toFixed(6)+'  •  Long '+Number(opt.mlng).toFixed(6)):'Using live GPS';
+}
+function showPickHint(ll){$('pickHint').textContent='Lat '+ll.lat.toFixed(6)+'  •  Long '+ll.lng.toFixed(6)}
+async function openPick(){
+  try{await loadLeaflet()}catch(e){toast('Map needs internet. Check your connection.');return}
+  $('pick').classList.add('open');
+  const st=effPos()||{lat:26.17,lng:90.62};
+  if(!pickMap){
+    pickMap=L.map('pickMap',{zoomControl:true}).setView([st.lat,st.lng],16);
+    const sat=opt.map==='sat';
+    L.tileLayer(sat?'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}':'https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:sat?'© Esri':'© OpenStreetMap'}).addTo(pickMap);
+    pickMarker=L.marker([st.lat,st.lng],{draggable:true,icon:L.divIcon({className:'',html:'<div class="pickPin"></div>',iconSize:[26,36],iconAnchor:[13,36]})}).addTo(pickMap);
+    pickMap.on('click',e=>{pickMarker.setLatLng(e.latlng);showPickHint(e.latlng)});
+    pickMarker.on('drag',()=>showPickHint(pickMarker.getLatLng()));
+    pickMarker.on('dragend',()=>showPickHint(pickMarker.getLatLng()));
+  }else{
+    pickMap.setView([st.lat,st.lng],pickMap.getZoom());
+    pickMarker.setLatLng([st.lat,st.lng]);
+  }
+  showPickHint(pickMarker.getLatLng());
+  setTimeout(()=>pickMap.invalidateSize(),60);
+}
+function closePick(){$('pick').classList.remove('open')}
 let info=null,thumb=null,lastGeo=null,lastTry=0,geoBusy=false,gpsErr='';
 
 function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('show'),2800)}
@@ -284,13 +336,27 @@ $('optReq').onchange=e=>{opt.req=e.target.checked;store.set('req',opt.req?'1':'0
 $('note').oninput=e=>{opt.note=e.target.value;store.set('note',opt.note)};
 $('mapSel').onchange=e=>{opt.map=e.target.value;store.set('map',opt.map);lastGeo=null;lastTry=0};
 $('optReq').checked=opt.req;$('note').value=opt.note;$('mapSel').value=opt.map;
-$('chgBtn').onclick=()=>$('chg').classList.add('open');
+$('chgBtn').onclick=()=>{showCoords();$('chg').classList.add('open')};
 $('chgDone').onclick=()=>$('chg').classList.remove('open');
-$('chgClear').onclick=()=>{opt.mtime='';opt.mlat='';opt.mlng='';opt.mplace='';['mtime','mlat','mlng','mplace'].forEach(k=>store.set(k,''));$('mtime').value='';$('mlat').value='';$('mlng').value='';$('mplace').value='';lastGeo=null;lastTry=0;refreshPlace();$('chg').classList.remove('open');toast('Using live time & GPS')};
+$('chgClear').onclick=()=>{opt.mtime='';opt.mlat='';opt.mlng='';opt.mplace='';['mtime','mlat','mlng','mplace'].forEach(k=>store.set(k,''));$('mtime').value='';$('mlat').value='';$('mlng').value='';$('mplace').value='';showCoords();lastGeo=null;lastTry=0;refreshPlace();$('chg').classList.remove('open');toast('Using live time & GPS')};
 $('mtime').value=opt.mtime;$('mlat').value=opt.mlat;$('mlng').value=opt.mlng;$('mplace').value=opt.mplace;
 $('mtime').onchange=e=>{opt.mtime=e.target.value;store.set('mtime',opt.mtime)};
-$('mlat').onchange=e=>{opt.mlat=e.target.value.trim();store.set('mlat',opt.mlat);lastGeo=null;lastTry=0;refreshPlace()};
-$('mlng').onchange=e=>{opt.mlng=e.target.value.trim();store.set('mlng',opt.mlng);lastGeo=null;lastTry=0;refreshPlace()};
+$('pickBtn').onclick=openPick;
+$('pickCancel').onclick=closePick;
+$('pickUse').onclick=async()=>{
+  const ll=pickMarker.getLatLng();
+  opt.mlat=String(ll.lat.toFixed(6));opt.mlng=String(ll.lng.toFixed(6));
+  store.set('mlat',opt.mlat);store.set('mlng',opt.mlng);
+  $('mlat').value=opt.mlat;$('mlng').value=opt.mlng;showCoords();
+  lastGeo={lat:ll.lat,lng:ll.lng};lastTry=Date.now();
+  toast('Looking up the place…');
+  try{
+    const [t,pl]=await Promise.all([mapThumb(ll.lat,ll.lng),reverse(ll.lat,ll.lng)]);
+    thumb=t;info=pl;
+    toast((pl&&pl.loc?pl.loc:'Place')+' — location set');
+  }catch(e){toast('Location set')}
+  closePick();
+};
 $('mplace').oninput=e=>{opt.mplace=e.target.value;store.set('mplace',opt.mplace)};
 // ===== Install as app =====
 if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{})}
