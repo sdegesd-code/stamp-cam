@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0d0f12">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Stamp Cam">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Stamp Cam</title>
+<style>
+:root{--ink:#0d0f12;--glass:rgba(20,22,26,.55);--line:rgba(255,255,255,.14);--text:#f4f4f2;--dim:#a4a7ad;--stamp:#ffb020}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--ink);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden}
+#cam{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
+#cam.front{transform:scaleX(-1)}
+.top,.bottom{position:fixed;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:calc(env(safe-area-inset-top,0px) + 14px) 18px 14px}
+.top{top:0;background:linear-gradient(#000a,transparent)}
+.bottom{bottom:0;padding:22px 28px calc(env(safe-area-inset-bottom,0px) + 26px);background:linear-gradient(transparent,#000b)}
+.live{font-family:"Courier New",monospace;font-weight:700;font-size:15px;color:var(--stamp);text-shadow:0 1px 3px #000;line-height:1.35}
+.live small{display:block;font-size:11px;font-weight:400;color:#ffd98a;opacity:.85}
+button{font:inherit;color:inherit;border:0;cursor:pointer}
+.ico{width:46px;height:46px;border-radius:50%;background:var(--glass);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--line);display:grid;place-items:center}
+.ico svg{width:22px;height:22px;stroke:#fff;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.ico.on{background:var(--stamp);border-color:var(--stamp)}.ico.warn{border-color:#ff5252}.ico.on svg{stroke:#1a1200}
+.shutter{width:78px;height:78px;border-radius:50%;background:transparent;border:4px solid #fff;padding:5px}
+.shutter i{display:block;width:100%;height:100%;border-radius:50%;background:#fff;transition:transform .12s}
+.shutter:active i{transform:scale(.86)}
+.thumb{width:46px;height:46px;border-radius:12px;border:2px solid #fff;background:#222 center/cover;visibility:hidden}
+.thumb.has{visibility:visible}
+.hidden{display:none!important}
+.install{position:fixed;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 74px);padding:9px 16px;border-radius:999px;background:var(--stamp);color:#1a1200;font-weight:700;font-size:13.5px;box-shadow:0 6px 18px #0008;z-index:3}
+.flash{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none}
+.flash.go{animation:fl .25s}@keyframes fl{0%{opacity:.8}100%{opacity:0}}
+.sheet{position:fixed;inset:0;background:var(--ink);display:none;flex-direction:column}
+.sheet.open{display:flex}
+.sheet img{flex:1;min-height:0;width:100%;object-fit:contain}
+.actions{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:14px 16px calc(env(safe-area-inset-bottom,0px) + 16px)}
+.act{display:flex;flex-direction:column;align-items:center;gap:7px;padding:12px 4px;border-radius:16px;background:#1a1d22;font-size:12.5px;color:var(--text)}
+.act svg{width:24px;height:24px;stroke:#fff;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.act.wa{background:#1f7a4a}
+.act:disabled{opacity:.5}
+.back{position:absolute;top:calc(env(safe-area-inset-top,0px) + 14px);left:16px}
+.toast{position:fixed;left:50%;bottom:140px;transform:translateX(-50%);background:#fff;color:#111;padding:10px 16px;border-radius:999px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;max-width:88%;text-align:center;z-index:9}
+.toast.show{opacity:1}
+.set{position:fixed;inset:0;background:#000a;display:none;align-items:flex-end;z-index:5}
+.set.open{display:flex}
+.panel{background:#16181d;width:100%;padding:20px 18px calc(env(safe-area-inset-bottom,0px) + 22px);border-radius:22px 22px 0 0;max-height:85%;overflow:auto}
+.panel h2{margin:0 0 14px;font-size:18px}
+.panel label{display:block;font-size:13px;color:var(--dim);margin:14px 0 6px}
+.panel input[type=text]{width:100%;padding:12px;border-radius:12px;border:1px solid var(--line);background:#0d0f12;color:var(--text);font-size:14px}
+.panel p{font-size:12.5px;color:var(--dim);line-height:1.5;margin:8px 0 0}
+.row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;font-size:15px}
+.panel .done{margin-top:18px;width:100%;padding:13px;border-radius:14px;background:var(--stamp);color:#1a1200;font-weight:700}
+.err{position:fixed;inset:0;display:none;place-items:center;text-align:center;padding:30px;background:var(--ink);line-height:1.5;color:var(--dim)}
+</style>
+</head>
+<body>
+<video id="cam" autoplay playsinline muted></video>
+<div class="top">
+  <div class="live" id="live">--<small id="liveGps"></small></div>
+  <div style="display:flex;gap:10px">
+    <button class="ico" id="gpsBtn" aria-label="Add location"><svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg></button>
+    <button class="ico" id="setBtn" aria-label="Settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+  </div>
+</div>
+<div class="bottom">
+  <button class="thumb" id="thumb" aria-label="Last photo"></button>
+  <button class="shutter" id="shutter" aria-label="Take photo"><i></i></button>
+  <button class="ico" id="flip" aria-label="Switch camera"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 15-6.7L21 8M21 3v5h-5M21 12a9 9 0 0 1-15 6.7L3 16M3 21v-5h5"/></svg></button>
+</div>
+<button class="install hidden" id="installBtn" type="button">Install app</button>
+<div class="flash" id="flash"></div>
+
+<div class="sheet" id="sheet">
+  <img id="prev" alt="Captured photo">
+  <button class="ico back" id="back" aria-label="Back to camera"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+  <div class="actions">
+    <button class="act wa" id="wa"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 0 1-13.4 7.8L3 21l1.3-4.4A9 9 0 1 1 21 12z"/></svg>WhatsApp</button>
+    <button class="act" id="save"><svg viewBox="0 0 24 24"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></svg>Save</button>
+    <button class="act" id="share"><svg viewBox="0 0 24 24"><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8.2 10.8l7.6-3.6M8.2 13.2l7.6 3.6"/></svg>Share</button>
+  </div>
+</div>
+
+<div class="set" id="set"><div class="panel">
+  <h2>Settings</h2>
+  <div class="row"><span>Require accurate GPS to capture</span><input type="checkbox" id="optReq"></div>
+  <label for="note">Note on photo</label>
+  <input type="text" id="note" placeholder="e.g. Captured by Stamp Cam" autocomplete="off">
+  <label for="mapSel">Map style</label>
+  <select id="mapSel" style="width:100%;padding:12px;border-radius:12px;border:1px solid var(--line);background:#0d0f12;color:var(--text);font-size:14px"><option value="sat">Satellite</option><option value="street">Street</option></select>
+
+  <button class="done" id="setDone">Done</button>
+</div></div>
+<div class="err" id="err"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+const MAX_ACC=30;     // metres: capture waits until GPS is at least this accurate
+const $=id=>document.getElementById(id);
+const store={get:k=>{try{return localStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}}};
+const cam=$('cam');let stream,facing='environment',blob,pos=null,gpsWatch=null,lastShot={};
+const opt={note:store.get('note')??'Captured by Stamp Cam',map:store.get('map')||'sat',req:store.get('req')!=='0'};
+let info=null,thumb=null,lastGeo=null,lastTry=0,geoBusy=false,gpsErr='';
+
+function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('show'),2800)}
+const pad=n=>String(n).padStart(2,'0');
+function t12(d){let h=d.getHours();const ap=h>=12?'PM':'AM';h=h%12||12;return pad(h)+':'+pad(d.getMinutes())+' '+ap}
+function stampLine(d){
+  const off=-d.getTimezoneOffset(),a=Math.abs(off);
+  return d.toLocaleDateString('en-US',{weekday:'long'})+', '+pad(d.getDate())+'/'+pad(d.getMonth()+1)+'/'+d.getFullYear()+' '+t12(d)+' GMT '+(off>=0?'+':'-')+pad(Math.floor(a/60))+':'+pad(a%60);
+}
+function plusCode(lat,lng){
+  const A='23456789CFGHJMPQRVWX';
+  lat=Math.min(Math.max(lat,-90),90-1e-6);
+  let la=Math.floor((lat+90)*40000+1e-6),lo=Math.floor(((((lng+180)%360)+360)%360)*32000+1e-6);
+  const g=(la%5)*4+(lo%4);la=Math.floor(la/5);lo=Math.floor(lo/4);
+  let c='';for(let i=0;i<5;i++){c=A[lo%20]+c;c=A[la%20]+c;la=Math.floor(la/20);lo=Math.floor(lo/20)}
+  return c.slice(0,8)+'+'+c.slice(8)+A[g];
+}
+const dist=(a,b)=>Math.hypot((a.lat-b.lat)*111320,(a.lng-b.lng)*111320*Math.cos(a.lat*Math.PI/180));
+const gpsFresh=()=>pos&&Date.now()-pos.t<20000;
+const gpsGood=()=>gpsFresh()&&pos.acc<=MAX_ACC;
+function tick(){
+  $('live').firstChild.nodeValue=t12(new Date());
+  const ok=gpsGood();
+  $('gpsBtn').classList.toggle('on',ok);$('gpsBtn').classList.toggle('warn',!ok);
+  $('liveGps').textContent=gpsErr||(gpsFresh()?'GPS ±'+Math.round(pos.acc)+' m'+(ok?'':' · improving'):'Locating…');
+}
+setInterval(tick,500);tick();
+
+function loadTile(u){return new Promise(r=>{const i=new Image();i.crossOrigin='anonymous';i.onload=()=>r(i);i.onerror=()=>r(null);i.src=u;setTimeout(()=>r(null),5000)})}
+async function mapThumb(lat,lng){
+  const z=17,n=2**z,S=256,sr=Math.sin(lat*Math.PI/180),sat=opt.map==='sat';
+  const px=(lng+180)/360*n*S,py=(0.5-Math.log((1+sr)/(1-sr))/(4*Math.PI))*n*S,x0=px-S/2,y0=py-S/2;
+  const c=document.createElement('canvas');c.width=c.height=S;const g=c.getContext('2d');
+  g.fillStyle='#1b2430';g.fillRect(0,0,S,S);
+  const tx0=Math.floor(x0/S),ty0=Math.floor(y0/S),jobs=[];
+  for(let tx=tx0;tx<=tx0+1;tx++)for(let ty=ty0;ty<=ty0+1;ty++){
+    const u=sat?'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/'+z+'/'+ty+'/'+tx:'https://tile.openstreetmap.org/'+z+'/'+tx+'/'+ty+'.png';
+    jobs.push(loadTile(u).then(im=>{if(im)g.drawImage(im,tx*S-x0,ty*S-y0)}));
+  }
+  await Promise.all(jobs);
+  const cx=S/2,cy=S/2;
+  g.fillStyle='#e53935';g.strokeStyle='#fff';g.lineWidth=3;
+  g.beginPath();g.arc(cx,cy-28,15,0,7);g.stroke();g.fill();
+  g.beginPath();g.moveTo(cx-11,cy-18);g.lineTo(cx,cy);g.lineTo(cx+11,cy-18);g.fill();
+  g.fillStyle='#fff';g.beginPath();g.arc(cx,cy-28,5.5,0,7);g.fill();
+  g.font='11px sans-serif';g.textAlign='right';g.fillStyle='#fff';g.shadowColor='#000';g.shadowBlur=3;
+  g.fillText(sat?'© Esri':'© OpenStreetMap',S-6,S-6);
+  return c;
+}
+async function reverse(lat,lng){
+  const r=await fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&zoom=18&accept-language=en&lat='+lat+'&lon='+lng);
+  const j=await r.json(),a=j.address||{};
+  const loc=a.village||a.suburb||a.hamlet||a.neighbourhood||a.town||a.city||a.city_district||a.county||j.name||'';
+  return {loc,state:a.state||'',pin:a.postcode||'',country:a.country||'',cc:(a.country_code||'').toUpperCase()};
+}
+async function refreshPlace(){
+  if(geoBusy||!pos||Date.now()-lastTry<8000||(lastGeo&&dist(lastGeo,pos)<40))return;
+  geoBusy=true;lastTry=Date.now();info=null;thumb=null;const at={lat:pos.lat,lng:pos.lng};
+  try{const [t,pl]=await Promise.all([mapThumb(at.lat,at.lng),reverse(at.lat,at.lng)]);thumb=t;info=pl;lastGeo=at}catch(e){}
+  geoBusy=false;
+}
+
+async function start(){
+  try{
+    if(stream)stream.getTracks().forEach(t=>t.stop());
+    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:facing},width:{ideal:1920},height:{ideal:1080}},audio:false});
+    cam.srcObject=stream;cam.classList.toggle('front',facing==='user');cam.play().catch(()=>{});
+  }catch(e){const x=$('err');x.style.display='grid';x.textContent='Camera access is blocked. Allow camera permission for this site in your browser settings, then reload. (Camera needs HTTPS, which GitHub Pages provides.)'}
+}
+function startGps(){
+  if(gpsWatch!==null)navigator.geolocation.clearWatch(gpsWatch);
+  gpsErr='';
+  if(!navigator.geolocation){gpsErr='Location not supported';return}
+  gpsWatch=navigator.geolocation.watchPosition(p=>{
+    const n={lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy,t:Date.now()};
+    if(!pos||n.acc<=pos.acc*1.3||n.t-pos.t>6000)pos=n;
+    gpsErr='';refreshPlace();
+  },e=>{gpsErr=e.code===1?'Allow location (Precise) in browser settings':'No GPS signal'},{enableHighAccuracy:true,maximumAge:0,timeout:20000});
+}
+function rr(x,X,Y,W,H,R){x.beginPath();x.moveTo(X+R,Y);x.arcTo(X+W,Y,X+W,Y+H,R);x.arcTo(X+W,Y+H,X,Y+H,R);x.arcTo(X,Y+H,X,Y,R);x.arcTo(X,Y,X+W,Y,R);x.closePath()}
+function wrap(x,t,mw){const o=[];let l='';for(const w of t.split(' ')){const q=l?l+' '+w:w;if(x.measureText(q).width>mw&&l){o.push(l);l=w}else l=q}if(l)o.push(l);return o}
+
+function capture(){
+  if(!cam.videoWidth)return;
+  if(opt.req&&!gpsGood()){toast(gpsFresh()?'Waiting for accurate GPS: ±'+Math.round(pos.acc)+' m now, need ±'+MAX_ACC+' m or better':'Waiting for GPS lock…');return}
+  const w=cam.videoWidth,h=cam.videoHeight,c=document.createElement('canvas');c.width=w;c.height=h;
+  const x=c.getContext('2d');x.drawImage(cam,0,0,w,h);
+  const P=gpsFresh()?pos:null,I=P?info:null,T=P?thumb:null,d=new Date();
+  const base=Math.min(w,h),pd=base*.025,ip=base*.02,mapS=P?base*.21:0,gap=P?base*.022:0;
+  const tx=pd+ip+mapS+gap,mw=w-pd-ip-tx,fT=base*.05,fS=base*.033,lh=1.3;
+  const ff='system-ui,-apple-system,"Segoe UI",Roboto,"Apple Color Emoji","Noto Color Emoji",sans-serif';
+  const rows=[];
+  if(P){
+    const flag=I&&I.cc?' '+String.fromCodePoint(...[...I.cc].map(ch=>127397+ch.charCodeAt(0))):'';
+    x.font='bold '+fT+'px '+ff;
+    const title=I?[I.loc,I.state,I.country].filter(Boolean).join(', '):'Locating address…';
+    wrap(x,title+flag,mw).forEach(t=>rows.push([t,fT,true]));
+    x.font=fS+'px '+ff;
+    const pc=plusCode(P.lat,P.lng).slice(4).toLowerCase();
+    const addr=pc+(I?', '+[I.loc,(I.state+' '+I.pin).trim(),I.country].filter(Boolean).join(', '):'');
+    wrap(x,addr,mw).forEach(t=>rows.push([t,fS]));
+    wrap(x,'Lat '+P.lat.toFixed(6)+'° Long '+P.lng.toFixed(6)+'° (±'+Math.round(P.acc)+' m)',mw).forEach(t=>rows.push([t,fS]));
+  }
+  x.font=fS+'px '+ff;
+  wrap(x,stampLine(d),mw).forEach(t=>rows.push([t,fS]));
+  if(opt.note.trim())wrap(x,'Note : '+opt.note.trim(),mw).forEach(t=>rows.push([t,fS]));
+  const textH=rows.reduce((a,r)=>a+r[1]*lh,0),cardH=Math.max(mapS,textH)+ip*2,cardY=h-pd-cardH;
+  x.fillStyle='rgba(0,0,0,.52)';rr(x,pd,cardY,w-pd*2,cardH,base*.02);x.fill();
+  if(P){
+    x.save();rr(x,pd+ip,cardY+ip,mapS,mapS,base*.012);x.clip();
+    if(T)x.drawImage(T,pd+ip,cardY+ip,mapS,mapS);else{x.fillStyle='#1b2430';x.fillRect(pd+ip,cardY+ip,mapS,mapS)}
+    x.restore();
+  }
+  x.fillStyle='#fff';x.textBaseline='top';x.textAlign='left';
+  let y=cardY+ip+Math.max(0,(cardH-ip*2-textH)/2);
+  rows.forEach(r=>{x.font=(r[2]?'bold ':'')+r[1]+'px '+ff;x.fillText(r[0],tx,y);y+=r[1]*lh});
+  $('flash').classList.remove('go');void $('flash').offsetWidth;$('flash').classList.add('go');
+  lastShot={lat:P?P.lat:'',lng:P?P.lng:'',acc:P?Math.round(P.acc):'',addr:I?[I.loc,I.state,I.pin,I.country].filter(Boolean).join(', '):''};
+  c.toBlob(b=>{blob=b;const url=URL.createObjectURL(b);$('prev').src=url;$('thumb').style.backgroundImage='url('+url+')';$('thumb').classList.add('has');$('sheet').classList.add('open')},'image/jpeg',.92);
+}
+const fname=()=>{const d=new Date();return 'IMG_'+d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'_'+pad(d.getHours())+pad(d.getMinutes())+pad(d.getSeconds())+'.jpg'};
+const file=()=>new File([blob],fname(),{type:'image/jpeg'});
+
+function download(){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=fname();a.click();toast('Saved to your device')}
+async function shareFile(){
+  const f=file();
+  if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],title:'Photo'})}catch(e){}}
+  else{download();toast('Sharing files is not supported here. Photo saved instead.')}
+}
+async function whatsapp(){
+  const f=file();
+  if(navigator.canShare&&navigator.canShare({files:[f]})){toast('Choose WhatsApp in the share menu');try{await navigator.share({files:[f]})}catch(e){}}
+  else{download();window.open('https://wa.me/','_blank');toast('Photo saved. Attach it in WhatsApp.')}
+}
+
+$('shutter').onclick=capture;
+$('flip').onclick=()=>{facing=facing==='user'?'environment':'user';start()};
+$('back').onclick=()=>$('sheet').classList.remove('open');
+$('thumb').onclick=()=>blob&&$('sheet').classList.add('open');
+$('save').onclick=download;$('share').onclick=shareFile;$('wa').onclick=whatsapp;
+$('gpsBtn').onclick=()=>{pos=null;lastGeo=null;lastTry=0;startGps();toast('Refreshing GPS…')};
+$('setBtn').onclick=()=>$('set').classList.add('open');
+$('setDone').onclick=()=>$('set').classList.remove('open');
+$('optReq').onchange=e=>{opt.req=e.target.checked;store.set('req',opt.req?'1':'0')};
+$('note').oninput=e=>{opt.note=e.target.value;store.set('note',opt.note)};
+$('mapSel').onchange=e=>{opt.map=e.target.value;store.set('map',opt.map);lastGeo=null;lastTry=0};
+$('optReq').checked=opt.req;$('note').value=opt.note;$('mapSel').value=opt.map;
+// ===== Install as app =====
+if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{})}
+const installBtn=$('installBtn');let deferredPrompt=null;
+const isStandalone=matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+if(!isStandalone){
+  addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;installBtn.classList.remove('hidden')});
+  installBtn.onclick=async()=>{
+    if(!deferredPrompt)return;
+    deferredPrompt.prompt();
+    const {outcome}=await deferredPrompt.userChoice;
+    if(outcome==='accepted')installBtn.classList.add('hidden');
+    deferredPrompt=null;
+  };
+  if(/iphone|ipad|ipod/i.test(navigator.userAgent)){
+    installBtn.textContent='Install: Share › Add to Home Screen';
+    installBtn.classList.remove('hidden');
+    installBtn.onclick=()=>alert('Tap the Share button in Safari, then "Add to Home Screen", then "Add".');
+  }
+}
+addEventListener('appinstalled',()=>installBtn.classList.add('hidden'));
+
+startGps();start();
+</script>
+</body>
+</html>
