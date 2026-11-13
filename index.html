@@ -25,6 +25,8 @@ html,body{margin:0;height:100%;background:var(--ink);color:var(--text);font-fami
 .live small{display:block;font-size:11px;font-weight:400;color:#ffd98a;opacity:.85}
 button{font:inherit;color:inherit;border:0;cursor:pointer}
 .ico{width:46px;height:46px;border-radius:50%;background:var(--glass);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--line);display:grid;place-items:center}
+.chg{height:46px;padding:0 14px;border-radius:999px;background:var(--glass);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--line);font-weight:700;font-size:13.5px}
+.chg.on{background:var(--stamp);border-color:var(--stamp);color:#1a1200}
 .ico svg{width:22px;height:22px;stroke:#fff;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .ico.on{background:var(--stamp);border-color:var(--stamp)}.ico.warn{border-color:#ff5252}.ico.on svg{stroke:#1a1200}
 .shutter{width:78px;height:78px;border-radius:50%;background:transparent;border:4px solid #fff;padding:5px}
@@ -52,7 +54,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .panel{background:#16181d;width:100%;padding:20px 18px calc(env(safe-area-inset-bottom,0px) + 22px);border-radius:22px 22px 0 0;max-height:85%;overflow:auto}
 .panel h2{margin:0 0 14px;font-size:18px}
 .panel label{display:block;font-size:13px;color:var(--dim);margin:14px 0 6px}
-.panel input[type=text]{width:100%;padding:12px;border-radius:12px;border:1px solid var(--line);background:#0d0f12;color:var(--text);font-size:14px}
+.panel input[type=text],.panel input[type=datetime-local]{width:100%;padding:12px;border-radius:12px;border:1px solid var(--line);background:#0d0f12;color:var(--text);font-size:14px}
 .panel p{font-size:12.5px;color:var(--dim);line-height:1.5;margin:8px 0 0}
 .row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;font-size:15px}
 .panel .done{margin-top:18px;width:100%;padding:13px;border-radius:14px;background:var(--stamp);color:#1a1200;font-weight:700}
@@ -64,6 +66,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 <div class="top">
   <div class="live" id="live">--<small id="liveGps"></small></div>
   <div style="display:flex;gap:10px">
+    <button class="chg" id="chgBtn" type="button">Change</button>
     <button class="ico" id="gpsBtn" aria-label="Add location"><svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg></button>
     <button class="ico" id="setBtn" aria-label="Settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
   </div>
@@ -96,6 +99,20 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 
   <button class="done" id="setDone">Done</button>
 </div></div>
+<div class="set" id="chg"><div class="panel">
+  <h2>Change time &amp; location</h2>
+  <p>Set a time and location of your choice to stamp instead of the phone clock and live GPS. The photo looks exactly the same as the normal stamp. Leave blank to use live values.</p>
+  <label for="mtime">Date &amp; time</label>
+  <input type="datetime-local" id="mtime">
+  <label for="mlat">Latitude</label>
+  <input type="text" id="mlat" placeholder="e.g. 26.123456" inputmode="decimal" autocomplete="off">
+  <label for="mlng">Longitude</label>
+  <input type="text" id="mlng" placeholder="e.g. 90.123456" inputmode="decimal" autocomplete="off">
+  <label for="mplace">Place name</label>
+  <input type="text" id="mplace" placeholder="e.g. village / locality name" autocomplete="off">
+  <button class="done" id="chgClear" style="background:#2a2e35;color:#fff">Use live time &amp; GPS</button>
+  <button class="done" id="chgDone">Done</button>
+</div></div>
 <div class="err" id="err"></div>
 <div class="toast" id="toast"></div>
 
@@ -104,7 +121,12 @@ const MAX_ACC=30;     // metres: capture waits until GPS is at least this accura
 const $=id=>document.getElementById(id);
 const store={get:k=>{try{return localStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}}};
 const cam=$('cam');let stream,facing='environment',blob,pos=null,gpsWatch=null,lastShot={};
-const opt={note:store.get('note')??'Captured by Stamp Cam',map:store.get('map')||'sat',req:store.get('req')!=='0'};
+const opt={note:store.get('note')??'Captured by Stamp Cam',map:store.get('map')||'sat',req:store.get('req')!=='0',mtime:store.get('mtime')||'',mlat:store.get('mlat')||'',mlng:store.get('mlng')||'',mplace:store.get('mplace')||''};
+// Change option: stamp the values the user set instead of the phone clock / live GPS.
+// The stamped photo keeps the exact same format as the normal stamp.
+const manualLoc=()=>opt.mlat!==''&&opt.mlng!==''&&!isNaN(+opt.mlat)&&!isNaN(+opt.mlng);
+const effPos=()=>manualLoc()?{lat:+opt.mlat,lng:+opt.mlng,acc:0,t:Date.now()}:pos;
+const effTime=()=>opt.mtime?new Date(opt.mtime):new Date();
 let info=null,thumb=null,lastGeo=null,lastTry=0,geoBusy=false,gpsErr='';
 
 function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('show'),2800)}
@@ -126,10 +148,11 @@ const dist=(a,b)=>Math.hypot((a.lat-b.lat)*111320,(a.lng-b.lng)*111320*Math.cos(
 const gpsFresh=()=>pos&&Date.now()-pos.t<20000;
 const gpsGood=()=>gpsFresh()&&pos.acc<=MAX_ACC;
 function tick(){
-  $('live').firstChild.nodeValue=t12(new Date());
-  const ok=gpsGood();
+  $('live').firstChild.nodeValue=t12(effTime());
+  const ok=manualLoc()||gpsGood();
   $('gpsBtn').classList.toggle('on',ok);$('gpsBtn').classList.toggle('warn',!ok);
-  $('liveGps').textContent=gpsErr||(gpsFresh()?'GPS ±'+Math.round(pos.acc)+' m'+(ok?'':' · improving'):'Locating…');
+  $('liveGps').textContent=manualLoc()?('Manual: '+Number(opt.mlat).toFixed(5)+', '+Number(opt.mlng).toFixed(5)):(gpsErr||(gpsFresh()?'GPS ±'+Math.round(pos.acc)+' m'+(ok?'':' · improving'):'Locating…'));
+  $('chgBtn').classList.toggle('on',manualLoc()||!!opt.mtime);
 }
 setInterval(tick,500);tick();
 
@@ -161,18 +184,26 @@ async function reverse(lat,lng){
   return {loc,state:a.state||'',pin:a.postcode||'',country:a.country||'',cc:(a.country_code||'').toUpperCase()};
 }
 async function refreshPlace(){
-  if(geoBusy||!pos||Date.now()-lastTry<8000||(lastGeo&&dist(lastGeo,pos)<40))return;
-  geoBusy=true;lastTry=Date.now();info=null;thumb=null;const at={lat:pos.lat,lng:pos.lng};
+  const ep=effPos();
+  if(geoBusy||!ep||Date.now()-lastTry<8000||(lastGeo&&dist(lastGeo,ep)<40))return;
+  geoBusy=true;lastTry=Date.now();info=null;thumb=null;const at={lat:ep.lat,lng:ep.lng};
   try{const [t,pl]=await Promise.all([mapThumb(at.lat,at.lng),reverse(at.lat,at.lng)]);thumb=t;info=pl;lastGeo=at}catch(e){}
   geoBusy=false;
 }
 
 async function start(){
+  const watch=()=>{clearTimeout(cam._chk);cam._chk=setTimeout(()=>{if(!cam.videoWidth)toast('Camera not showing — tap the screen to retry')},3000)};
   try{
     if(stream)stream.getTracks().forEach(t=>t.stop());
     stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:facing},width:{ideal:1920},height:{ideal:1080}},audio:false});
-    cam.srcObject=stream;cam.classList.toggle('front',facing==='user');cam.play().catch(()=>{});
-  }catch(e){const x=$('err');x.style.display='grid';x.textContent='Camera access is blocked. Allow camera permission for this site in your browser settings, then reload. (Camera needs HTTPS, which GitHub Pages provides.)'}
+    cam.srcObject=stream;cam.classList.toggle('front',facing==='user');cam.play().catch(()=>{});watch();
+  }catch(e){
+    try{
+      if(stream)stream.getTracks().forEach(t=>t.stop());
+      stream=await navigator.mediaDevices.getUserMedia({video:true,audio:false});
+      cam.srcObject=stream;cam.classList.remove('front');cam.play().catch(()=>{});watch();
+    }catch(e2){const x=$('err');x.style.display='grid';x.textContent='Camera access is blocked. Allow camera permission for this site in your browser settings, then reload. (Camera needs HTTPS, which GitHub Pages provides.)'}
+  }
 }
 function startGps(){
   if(gpsWatch!==null)navigator.geolocation.clearWatch(gpsWatch);
@@ -189,10 +220,10 @@ function wrap(x,t,mw){const o=[];let l='';for(const w of t.split(' ')){const q=l
 
 function capture(){
   if(!cam.videoWidth)return;
-  if(opt.req&&!gpsGood()){toast(gpsFresh()?'Waiting for accurate GPS: ±'+Math.round(pos.acc)+' m now, need ±'+MAX_ACC+' m or better':'Waiting for GPS lock…');return}
+  if(opt.req&&!manualLoc()&&!gpsGood()){toast(gpsFresh()?'Waiting for accurate GPS: ±'+Math.round(pos.acc)+' m now, need ±'+MAX_ACC+' m or better':'Waiting for GPS lock…');return}
   const w=cam.videoWidth,h=cam.videoHeight,c=document.createElement('canvas');c.width=w;c.height=h;
   const x=c.getContext('2d');x.drawImage(cam,0,0,w,h);
-  const P=gpsFresh()?pos:null,I=P?info:null,T=P?thumb:null,d=new Date();
+  const P=manualLoc()?effPos():(gpsFresh()?pos:null),I=P?info:null,T=P?thumb:null,d=effTime();
   const base=Math.min(w,h),pd=base*.025,ip=base*.02,mapS=P?base*.21:0,gap=P?base*.022:0;
   const tx=pd+ip+mapS+gap,mw=w-pd-ip-tx,fT=base*.05,fS=base*.033,lh=1.3;
   const ff='system-ui,-apple-system,"Segoe UI",Roboto,"Apple Color Emoji","Noto Color Emoji",sans-serif';
@@ -200,13 +231,13 @@ function capture(){
   if(P){
     const flag=I&&I.cc?' '+String.fromCodePoint(...[...I.cc].map(ch=>127397+ch.charCodeAt(0))):'';
     x.font='bold '+fT+'px '+ff;
-    const title=I?[I.loc,I.state,I.country].filter(Boolean).join(', '):'Locating address…';
+    const title=opt.mplace.trim()?opt.mplace.trim():(I?[I.loc,I.state,I.country].filter(Boolean).join(', '):'Locating address…');
     wrap(x,title+flag,mw).forEach(t=>rows.push([t,fT,true]));
     x.font=fS+'px '+ff;
     const pc=plusCode(P.lat,P.lng).slice(4).toLowerCase();
     const addr=pc+(I?', '+[I.loc,(I.state+' '+I.pin).trim(),I.country].filter(Boolean).join(', '):'');
     wrap(x,addr,mw).forEach(t=>rows.push([t,fS]));
-    wrap(x,'Lat '+P.lat.toFixed(6)+'° Long '+P.lng.toFixed(6)+'° (±'+Math.round(P.acc)+' m)',mw).forEach(t=>rows.push([t,fS]));
+    wrap(x,'Lat '+P.lat.toFixed(6)+'° Long '+P.lng.toFixed(6)+'°'+(manualLoc()?'':' (±'+Math.round(P.acc)+' m)'),mw).forEach(t=>rows.push([t,fS]));
   }
   x.font=fS+'px '+ff;
   wrap(x,stampLine(d),mw).forEach(t=>rows.push([t,fS]));
@@ -222,7 +253,7 @@ function capture(){
   let y=cardY+ip+Math.max(0,(cardH-ip*2-textH)/2);
   rows.forEach(r=>{x.font=(r[2]?'bold ':'')+r[1]+'px '+ff;x.fillText(r[0],tx,y);y+=r[1]*lh});
   $('flash').classList.remove('go');void $('flash').offsetWidth;$('flash').classList.add('go');
-  lastShot={lat:P?P.lat:'',lng:P?P.lng:'',acc:P?Math.round(P.acc):'',addr:I?[I.loc,I.state,I.pin,I.country].filter(Boolean).join(', '):''};
+  lastShot={lat:P?P.lat:'',lng:P?P.lng:'',acc:P?Math.round(P.acc):'',addr:opt.mplace.trim()?opt.mplace.trim():(I?[I.loc,I.state,I.pin,I.country].filter(Boolean).join(', '):'')};
   c.toBlob(b=>{blob=b;const url=URL.createObjectURL(b);$('prev').src=url;$('thumb').style.backgroundImage='url('+url+')';$('thumb').classList.add('has');$('sheet').classList.add('open')},'image/jpeg',.92);
 }
 const fname=()=>{const d=new Date();return 'IMG_'+d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'_'+pad(d.getHours())+pad(d.getMinutes())+pad(d.getSeconds())+'.jpg'};
@@ -241,6 +272,7 @@ async function whatsapp(){
 }
 
 $('shutter').onclick=capture;
+cam.onclick=()=>{start();toast('Restarting camera…')};
 $('flip').onclick=()=>{facing=facing==='user'?'environment':'user';start()};
 $('back').onclick=()=>$('sheet').classList.remove('open');
 $('thumb').onclick=()=>blob&&$('sheet').classList.add('open');
@@ -252,6 +284,14 @@ $('optReq').onchange=e=>{opt.req=e.target.checked;store.set('req',opt.req?'1':'0
 $('note').oninput=e=>{opt.note=e.target.value;store.set('note',opt.note)};
 $('mapSel').onchange=e=>{opt.map=e.target.value;store.set('map',opt.map);lastGeo=null;lastTry=0};
 $('optReq').checked=opt.req;$('note').value=opt.note;$('mapSel').value=opt.map;
+$('chgBtn').onclick=()=>$('chg').classList.add('open');
+$('chgDone').onclick=()=>$('chg').classList.remove('open');
+$('chgClear').onclick=()=>{opt.mtime='';opt.mlat='';opt.mlng='';opt.mplace='';['mtime','mlat','mlng','mplace'].forEach(k=>store.set(k,''));$('mtime').value='';$('mlat').value='';$('mlng').value='';$('mplace').value='';lastGeo=null;lastTry=0;refreshPlace();$('chg').classList.remove('open');toast('Using live time & GPS')};
+$('mtime').value=opt.mtime;$('mlat').value=opt.mlat;$('mlng').value=opt.mlng;$('mplace').value=opt.mplace;
+$('mtime').onchange=e=>{opt.mtime=e.target.value;store.set('mtime',opt.mtime)};
+$('mlat').onchange=e=>{opt.mlat=e.target.value.trim();store.set('mlat',opt.mlat);lastGeo=null;lastTry=0;refreshPlace()};
+$('mlng').onchange=e=>{opt.mlng=e.target.value.trim();store.set('mlng',opt.mlng);lastGeo=null;lastTry=0;refreshPlace()};
+$('mplace').oninput=e=>{opt.mplace=e.target.value;store.set('mplace',opt.mplace)};
 // ===== Install as app =====
 if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{})}
 const installBtn=$('installBtn');let deferredPrompt=null;
