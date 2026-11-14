@@ -69,6 +69,24 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;font-size:15px}
 .panel .done{margin-top:18px;width:100%;padding:13px;border-radius:14px;background:var(--stamp);color:#1a1200;font-weight:700}
 .err{position:fixed;inset:0;display:none;place-items:center;text-align:center;padding:30px;background:var(--ink);line-height:1.5;color:var(--dim)}
+/* First-open start screen: the camera permission is asked on a tap here,
+   not during page load — asking during load is what force-closed the app. */
+.startov{position:fixed;inset:0;background:var(--ink);display:none;place-items:center;text-align:center;padding:30px;z-index:6}
+.startov.open{display:grid}
+.startov h1{margin:0 0 10px;font-size:26px}
+.startov p{color:var(--dim);line-height:1.6;margin:0 0 22px}
+.startov button{padding:15px 34px;border-radius:999px;background:var(--stamp);color:#1a1200;font-weight:700;font-size:16px}
+/* Gallery: list of saved photos with delete */
+.gal{position:fixed;inset:0;background:var(--ink);display:none;flex-direction:column;z-index:7}
+.gal.open{display:flex}
+.galHead{display:flex;align-items:center;justify-content:space-between;padding:calc(env(safe-area-inset-top,0px) + 16px) 18px 12px}
+.galHead h2{margin:0;font-size:18px}
+.galGrid{flex:1;overflow:auto;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:4px 14px calc(env(safe-area-inset-bottom,0px) + 18px);align-content:start}
+.galItem{position:relative;border-radius:12px;overflow:hidden;background:#222;aspect-ratio:3/4}
+.galItem img{width:100%;height:100%;object-fit:cover;display:block}
+.galItem .del{position:absolute;top:6px;right:6px;width:30px;height:30px;border-radius:50%;background:#000c;color:#fff;font-size:16px;line-height:1;display:grid;place-items:center}
+.galItem .cap{position:absolute;left:0;right:0;bottom:0;padding:14px 6px 5px;font-size:10.5px;color:#fff;background:linear-gradient(transparent,#000c);text-align:left}
+.galEmpty{padding:40px 24px;text-align:center;color:var(--dim);line-height:1.6}
 </style>
 </head>
 <body>
@@ -77,12 +95,13 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
   <div class="live" id="live">--<small id="liveGps"></small></div>
   <div style="display:flex;gap:10px">
     <button class="chg" id="chgBtn" type="button">Change</button>
-    <button class="ico" id="gpsBtn" aria-label="Add location"><svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg></button>
-    <button class="ico" id="setBtn" aria-label="Settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+    <button class=ico" id="gpsBtn" aria-label="Add location"><svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg></button>
+    <button class="ico" id="setBtn" aria-label="Settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0 .3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
   </div>
 </div>
 <div class="bottom">
-  <button class="thumb" id="thumb" aria-label="Last photo"></button>
+  <button class="thumb" id="thumb" aria-label="Photos"></button>
+  <button class="ico" id="galPick" aria-label="Choose from gallery"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="1.6"/><path d="M3 17l5-4 4 3 4-3 5 4"/></svg></button>
   <button class="shutter" id="shutter" aria-label="Take photo"><i></i></button>
   <button class="ico" id="flip" aria-label="Switch camera"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 15-6.7L21 8M21 3v5h-5M21 12a9 9 0 0 1-15 6.7L3 16M3 21v-5h5"/></svg></button>
 </div>
@@ -94,9 +113,14 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
   <button class="ico back" id="back" aria-label="Back to camera"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
   <div class="actions">
     <button class="act wa" id="wa"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 0 1-13.4 7.8L3 21l1.3-4.4A9 9 0 1 1 21 12z"/></svg>WhatsApp</button>
-    <button class="act" id="save"><svg viewBox="0 0 24 24"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></svg>Save</button>
+    <button class="act" id="save"><svg viewBox="0 0 24 24"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></svg><span>Save</span></button>
     <button class="act" id="share"><svg viewBox="0 0 24 24"><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8.2 10.8l7.6-3.6M8.2 13.2l7.6 3.6"/></svg>Share</button>
   </div>
+</div>
+
+<div class="gal" id="gal">
+  <div class="galHead"><h2>Photos</h2><button class="ico" id="galClose" aria-label="Close photos"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="galGrid" id="galGrid"></div>
 </div>
 
 <div class="set" id="set"><div class="panel">
@@ -131,6 +155,11 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
     <button class="use" id="pickUse" type="button">Use this location</button>
   </div>
 </div>
+<div class="startov" id="startOverlay"><div>
+  <h1>Stamp Cam</h1>
+  <p>Tap below to start the camera.<br>You'll be asked once to allow the camera and location.</p>
+  <button id="startCamBtn" type="button">Start Camera</button>
+</div></div>
 <div class="err" id="err"></div>
 <div class="toast" id="toast"></div>
 
@@ -138,8 +167,16 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 const MAX_ACC=30;     // metres: capture waits until GPS is at least this accurate
 const $=id=>document.getElementById(id);
 const store={get:k=>{try{return localStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}}};
-const cam=$('cam');let stream,facing='environment',blob,pos=null,gpsWatch=null,lastShot={};
+const cam=$('cam');let stream,facing='environment',blob,pos=null,gpsWatch=null,lastShot={},viewingShot=null,lastSaved=null;
 const opt={note:store.get('note')??'Captured by Stamp Cam',map:store.get('map')||'sat',req:store.get('req')!=='0',mtime:store.get('mtime')||'',mlat:store.get('mlat')||'',mlng:store.get('mlng')||'',mplace:store.get('mplace')||''};
+// ===== Capacitor (native app) =====
+// In the APK, Capacitor plugins give us real Save / Share / permissions.
+// In a plain browser these are absent and the app falls back to web behaviour.
+const Cap=window.Capacitor||null;
+const Plugs=Cap&&Cap.Plugins?Cap.Plugins:{};
+const FS=Plugs.Filesystem||null, SH=Plugs.Share||null, CAM=Plugs.Camera||null;
+const isNative=!!Cap&&Cap.isNativePlatform&&Cap.isNativePlatform();
+const blobToB64=b=>new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(',')[1]);r.onerror=rej;r.readAsDataURL(b)});
 // Change option: stamp the values the user set instead of the phone clock / live GPS.
 // The stamped photo keeps the exact same format as the normal stamp.
 const manualLoc=()=>opt.mlat!==''&&opt.mlng!==''&&!isNaN(+opt.mlat)&&!isNaN(+opt.mlng);
@@ -243,7 +280,8 @@ async function refreshPlace(){
   geoBusy=false;
 }
 
-async function start(){
+async function start(attempt){
+  attempt=attempt||0;
   const watch=()=>{clearTimeout(cam._chk);cam._chk=setTimeout(()=>{if(!cam.videoWidth)toast('Camera not showing — tap to retry, or reset site permission')},3000)};
   try{
     if(navigator.permissions&&navigator.permissions.query){
@@ -256,6 +294,7 @@ async function start(){
     stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:facing},width:{ideal:1920},height:{ideal:1080}},audio:false});
     cam.srcObject=stream;cam.classList.toggle('front',facing==='user');cam.play().catch(()=>{});watch();
   }catch(e){
+    if(attempt===0){setTimeout(()=>start(1),700);return}
     try{
       if(stream)stream.getTracks().forEach(t=>t.stop());
       stream=await navigator.mediaDevices.getUserMedia({video:true,audio:false});
@@ -268,7 +307,7 @@ function stopCam(){clearTimeout(cam._chk);if(stream){stream.getTracks().forEach(
 document.addEventListener('visibilitychange',()=>{if(document.hidden)stopCam();else if(!stream||!stream.active)start()});
 window.addEventListener('pagehide',stopCam);
 function startGps(){
-  if(gpsWatch!==null)navigator.geolocation.clearWatch(gpsWatch);
+  if(gpsWatch!==null&&navigator.geolocation)navigator.geolocation.clearWatch(gpsWatch);
   gpsErr='';
   if(!navigator.geolocation){gpsErr='Location not supported';return}
   gpsWatch=navigator.geolocation.watchPosition(p=>{
@@ -280,11 +319,10 @@ function startGps(){
 function rr(x,X,Y,W,H,R){x.beginPath();x.moveTo(X+R,Y);x.arcTo(X+W,Y,X+W,Y+H,R);x.arcTo(X+W,Y+H,X,Y+H,R);x.arcTo(X,Y+H,X,Y,R);x.arcTo(X,Y,X+W,Y,R);x.closePath()}
 function wrap(x,t,mw){const o=[];let l='';for(const w of t.split(' ')){const q=l?l+' '+w:w;if(x.measureText(q).width>mw&&l){o.push(l);l=w}else l=q}if(l)o.push(l);return o}
 
-function capture(){
-  if(!cam.videoWidth)return;
-  if(opt.req&&!manualLoc()&&!gpsGood()){toast(gpsFresh()?'Waiting for accurate GPS: ±'+Math.round(pos.acc)+' m now, need ±'+MAX_ACC+' m or better':'Waiting for GPS lock…');return}
-  const w=cam.videoWidth,h=cam.videoHeight,c=document.createElement('canvas');c.width=w;c.height=h;
-  const x=c.getContext('2d');x.drawImage(cam,0,0,w,h);
+// ===== Stamp drawing (shared by camera capture and gallery pick) =====
+// Draws the stamp card (place, address, lat/long, date/time, note, map thumb)
+// onto a canvas that already has the photo. Same format in both cases.
+function drawStamp(x,w,h){
   const P=manualLoc()?effPos():(gpsFresh()?pos:null),I=P?info:null,T=P?thumb:null,d=effTime();
   const base=Math.min(w,h),pd=base*.025,ip=base*.02,mapS=P?base*.21:0,gap=P?base*.022:0;
   const tx=pd+ip+mapS+gap,mw=w-pd-ip-tx,fT=base*.05,fS=base*.033,lh=1.3;
@@ -314,30 +352,225 @@ function capture(){
   x.fillStyle='#fff';x.textBaseline='top';x.textAlign='left';
   let y=cardY+ip+Math.max(0,(cardH-ip*2-textH)/2);
   rows.forEach(r=>{x.font=(r[2]?'bold ':'')+r[1]+'px '+ff;x.fillText(r[0],tx,y);y+=r[1]*lh});
-  $('flash').classList.remove('go');void $('flash').offsetWidth;$('flash').classList.add('go');
   lastShot={lat:P?P.lat:'',lng:P?P.lng:'',acc:P?Math.round(P.acc):'',addr:opt.mplace.trim()?opt.mplace.trim():(I?[I.loc,I.state,I.pin,I.country].filter(Boolean).join(', '):'')};
-  c.toBlob(b=>{blob=b;const url=URL.createObjectURL(b);$('prev').src=url;$('thumb').style.backgroundImage='url('+url+')';$('thumb').classList.add('has');$('sheet').classList.add('open')},'image/jpeg',.92);
+}
+
+// Show the finished photo: preview sheet, then (in the app) save it straight
+// away like a real camera app — every photo is kept, no separate Save tap.
+function finishShot(c){
+  viewingShot=null;lastSaved=null;setSaveState(false);
+  c.toBlob(async b=>{
+    blob=b;
+    const url=URL.createObjectURL(b);
+    $('prev').src=url;$('thumb').style.backgroundImage='url('+url+')';$('thumb').classList.add('has');
+    $('sheet').classList.add('open');
+    if(isNative&&FS){
+      const saved=await saveToDevice();
+      if(saved){lastSaved=saved;refreshThumb();setSaveState(true)}
+    }
+  },'image/jpeg',.92);
+}
+function capture(){
+  if(!cam.videoWidth)return;
+  if(opt.req&&!manualLoc()&&!gpsGood()){toast(gpsFresh()?'Waiting for accurate GPS: ±'+Math.round(pos.acc)+' m now, need ±'+MAX_ACC+' m or better':'Waiting for GPS lock…');return}
+  const w=cam.videoWidth,h=cam.videoHeight,c=document.createElement('canvas');c.width=w;c.height=h;
+  const x=c.getContext('2d');x.drawImage(cam,0,0,w,h);
+  drawStamp(x,w,h);
+  $('flash').classList.remove('go');void $('flash').offsetWidth;$('flash').classList.add('go');
+  finishShot(c);
+}
+// ===== Choose a photo from the gallery and stamp it =====
+// Same stamp as a camera photo (live GPS/time, or the manual values from Change).
+// In the app this uses the native picker; in a browser it uses a file input.
+async function pickFromGallery(){
+  if(CAM){
+    try{
+      const photo=await CAM.getPhoto({source:'PHOTOS',resultType:'uri',quality:92});
+      const src=photo.webPath||photo.path;
+      if(!src)return;
+      const img=new Image();
+      img.onload=()=>stampPicked(img);
+      img.onerror=()=>toast('Could not open that photo');
+      img.src=src;
+    }catch(e){/* user cancelled the picker */}
+    return;
+  }
+  const inp=document.createElement('input');
+  inp.type='file';inp.accept='image/*';
+  inp.onchange=()=>{
+    const f=inp.files&&inp.files[0];if(!f)return;
+    const url=URL.createObjectURL(f);
+    const img=new Image();
+    img.onload=()=>{stampPicked(img);URL.revokeObjectURL(url)};
+    img.onerror=()=>toast('Could not open that photo');
+    img.src=url;
+  };
+  inp.click();
+}
+function stampPicked(img){
+  const MAX=1920,iw=img.naturalWidth||img.width,ih=img.naturalHeight||img.height;
+  const sc=Math.min(1,MAX/Math.max(iw,ih));
+  const w=Math.max(1,Math.round(iw*sc)),h=Math.max(1,Math.round(ih*sc));
+  const c=document.createElement('canvas');c.width=w;c.height=h;
+  const x=c.getContext('2d');x.drawImage(img,0,0,w,h);
+  drawStamp(x,w,h);
+  finishShot(c);
 }
 const fname=()=>{const d=new Date();return 'IMG_'+d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'_'+pad(d.getHours())+pad(d.getMinutes())+pad(d.getSeconds())+'.jpg'};
 const file=()=>new File([blob],fname(),{type:'image/jpeg'});
 
-function download(){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=fname();a.click();toast('Saved to your device')}
-async function shareFile(){
-  const f=file();
-  if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],title:'Photo'})}catch(e){}}
-  else{download();toast('Sharing files is not supported here. Photo saved instead.')}
+// Small thumbnail (data URL) for the Photos list, so the list always shows
+// even if the saved file itself cannot be previewed.
+function makeThumb(b){
+  return new Promise(res=>{
+    const url=URL.createObjectURL(b);
+    const im=new Image();
+    im.onload=()=>{
+      const s=240,w=im.naturalWidth,h=im.naturalHeight,sc=Math.min(1,s/Math.max(w,h));
+      const c=document.createElement('canvas');c.width=Math.max(1,Math.round(w*sc));c.height=Math.max(1,Math.round(h*sc));
+      c.getContext('2d').drawImage(im,0,0,c.width,c.height);
+      URL.revokeObjectURL(url);
+      res(c.toDataURL('image/jpeg',0.7));
+    };
+    im.onerror=()=>{URL.revokeObjectURL(url);res('')};
+    im.src=url;
+  });
 }
-async function whatsapp(){
-  const f=file();
-  if(navigator.canShare&&navigator.canShare({files:[f]})){toast('Choose WhatsApp in the share menu');try{await navigator.share({files:[f]})}catch(e){}}
-  else{download();window.open('https://wa.me/','_blank');toast('Photo saved. Attach it in WhatsApp.')}
+function setSaveState(saved){
+  const b=$('save');
+  b.disabled=!!saved;
+  const sp=b.querySelector('span');if(sp)sp.textContent=saved?'Saved ✓':'Save';
 }
 
+// ===== Saved photos (gallery list + delete) =====
+const SHOTS_KEY='shots';
+const getShots=()=>{try{return JSON.parse(store.get(SHOTS_KEY)||'[]')}catch(e){return[]}};
+const setShots=a=>store.set(SHOTS_KEY,JSON.stringify(a));
+const GAL_DIR='EXTERNAL_STORAGE', GAL_PATH='Pictures/Stamp Cam/';
+function shotSrc(s){
+  if(s.thumb)return s.thumb;
+  if(s.dataUrl)return s.dataUrl;
+  if(s.uri&&Cap&&Cap.convertFileSrc)return Cap.convertFileSrc(s.uri);
+  return s.uri||'';
+}
+// Save the current photo to the device (Pictures/Stamp Cam) so it shows in the gallery.
+// In the APK this writes through the Filesystem plugin — a web <a download> does
+// nothing inside an app, which is why Save looked dead. On modern Android this
+// needs no separate storage permission prompt; it saves straight to Pictures.
+async function saveToDevice(){
+  if(!blob){toast('Take a photo first');return null}
+  const name=fname();
+  const thumbUrl=await makeThumb(blob);
+  if(FS){
+    try{
+      const b64=await blobToB64(blob);
+      const r=await FS.writeFile({path:GAL_PATH+name,data:b64,directory:GAL_DIR,recursive:true});
+      const uri=r.uri||r.path||(GAL_PATH+name);
+      const shots=getShots();
+      shots.unshift({name,path:GAL_PATH+name,uri,thumb:thumbUrl,time:Date.now(),addr:lastShot.addr||''});
+      setShots(shots.slice(0,200));
+      toast('Saved to Pictures / Stamp Cam');
+      return {name,path:GAL_PATH+name,uri};
+    }catch(e){toast('Could not save: '+(e&&e.message?e.message:'unknown error'));return null}
+  }
+  // Web fallback (browser): the plain download link works here.
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();
+  const shots=getShots();shots.unshift({name,path:name,uri:'',thumb:thumbUrl,time:Date.now(),addr:lastShot.addr||''});setShots(shots.slice(0,200));
+  toast('Saved to your device');
+  return {name,path:name,uri:''};
+}
+async function download(){
+  if(lastSaved){toast('Already saved to Pictures / Stamp Cam');return}
+  const s=await saveToDevice();
+  if(s){lastSaved=s;refreshThumb();setSaveState(true)}
+}
+async function shareFile(){
+  // Viewing a saved photo from the gallery: share its file directly.
+  if(viewingShot&&viewingShot.uri&&SH){
+    try{await SH.share({title:'Stamp Cam photo',text:'',url:viewingShot.uri,dialogTitle:'Share photo',files:[viewingShot.uri]});return}catch(e){return}
+  }
+  if(!blob){toast('Take a photo first');return}
+  if(SH&&FS){
+    try{
+      const s=lastSaved||await saveToDevice();
+      if(!s)return;
+      lastSaved=s;
+      await SH.share({title:'Stamp Cam photo',text:'',url:s.uri,dialogTitle:'Share photo',files:[s.uri]});
+      return;
+    }catch(e){/* user cancelled the share sheet — not an error */}
+    return;
+  }
+  const f=file();
+  if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],title:'Photo'})}catch(e){}}
+  else{await download();toast('Sharing files is not supported here. Photo saved instead.')}
+}
+async function whatsapp(){
+  // Viewing a saved photo from the gallery: share its file directly.
+  if(viewingShot&&viewingShot.uri&&SH){
+    try{await SH.share({title:'Stamp Cam photo',text:'',url:viewingShot.uri,dialogTitle:'Share photo',files:[viewingShot.uri]});return}catch(e){return}
+  }
+  if(!blob){toast('Take a photo first');return}
+  if(SH&&FS){
+    try{
+      const s=lastSaved||await saveToDevice();
+      if(!s)return;
+      lastSaved=s;
+      await SH.share({title:'Stamp Cam photo',text:'',url:s.uri,dialogTitle:'Share photo',files:[s.uri]});
+      return;
+    }catch(e){/* user cancelled */}
+    return;
+  }
+  const f=file();
+  if(navigator.canShare&&navigator.canShare({files:[f]})){toast('Choose WhatsApp in the share menu');try{await navigator.share({files:[f]})}catch(e){}}
+  else{await download();window.open('https://wa.me/','_blank');toast('Photo saved. Attach it in WhatsApp.')}
+}
+function refreshThumb(){
+  const shots=getShots();
+  if(shots.length&&shots[0]){
+    const s=shots[0];
+    const src=shotSrc(s);
+    if(src){$('thumb').style.backgroundImage='url('+src+')';$('thumb').classList.add('has')}
+  }
+}
+async function renderGallery(){
+  const grid=$('galGrid');grid.innerHTML='';
+  const shots=getShots();
+  if(!shots.length){grid.innerHTML='<div class="galEmpty">No photos saved yet.<br>Take a photo and tap Save — it will appear here and in your gallery.</div>';return}
+  for(let i=0;i<shots.length;i++){
+    const s=shots[i];
+    const d=document.createElement('div');d.className='galItem';
+    const im=document.createElement('img');im.alt=s.name||'photo';im.src=shotSrc(s);
+    const cap=document.createElement('div');cap.className='cap';cap.textContent=(s.addr||'')+(s.time?' • '+new Date(s.time).toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'');
+    const del=document.createElement('button');del.className='del';del.type='button';del.textContent='×';del.setAttribute('aria-label','Delete photo');
+    del.onclick=async ev=>{
+      ev.stopPropagation();
+      try{if(FS&&s.path)await FS.deleteFile({path:s.path,directory:GAL_DIR})}catch(e){}
+      const rest=getShots().filter((_,j)=>j!==i);setShots(rest);
+      renderGallery();refreshThumb();
+      toast('Photo deleted');
+    };
+    im.onclick=()=>{
+      let src='';
+      if(s.uri&&Cap&&Cap.convertFileSrc)src=Cap.convertFileSrc(s.uri);
+      else if(s.uri)src=s.uri;
+      else if(s.thumb)src=s.thumb;
+      else if(s.dataUrl)src=s.dataUrl;
+      if(!src)return;
+      $('prev').src=src;
+      viewingShot=s;setSaveState(true);
+      $('gal').classList.remove('open');$('sheet').classList.add('open');
+    };
+    d.appendChild(im);d.appendChild(cap);d.appendChild(del);grid.appendChild(d);
+  }
+}
+function openGallery(){renderGallery();$('gal').classList.add('open')}
 $('shutter').onclick=capture;
+$('galPick').onclick=pickFromGallery;
 cam.onclick=()=>{start();toast('Restarting camera…')};
 $('flip').onclick=()=>{facing=facing==='user'?'environment':'user';start()};
-$('back').onclick=()=>$('sheet').classList.remove('open');
-$('thumb').onclick=()=>blob&&$('sheet').classList.add('open');
+$('back').onclick=()=>{$('sheet').classList.remove('open');viewingShot=null};
+$('thumb').onclick=openGallery;
+$('galClose').onclick=()=>$('gal').classList.remove('open');
 $('save').onclick=download;$('share').onclick=shareFile;$('wa').onclick=whatsapp;
 $('gpsBtn').onclick=()=>{pos=null;lastGeo=null;lastTry=0;startGps();toast('Refreshing GPS…')};
 $('setBtn').onclick=()=>$('set').classList.add('open');
@@ -389,7 +622,28 @@ if(!isStandalone){
 }
 addEventListener('appinstalled',()=>installBtn.classList.add('hidden'));
 
-startGps();start();
+// ===== Startup: native-like first open =====
+// On the very first open the camera permission is not granted yet. Asking for
+// it during page load is what made the app force-close, so instead we show a
+// Start button and ask on that tap — the flow Android expects. Once permission
+// is granted, later opens start the camera straight away.
+async function initApp(){
+  refreshThumb();
+  if(isNative&&CAM){
+    let granted=false;
+    try{const st=await CAM.checkPermissions();granted=!!st&&st.camera==='granted'}catch(e){}
+    if(granted){startGps();start();return}
+    $('startOverlay').classList.add('open');
+    return;
+  }
+  startGps();start();
+}
+$('startCamBtn').onclick=async()=>{
+  $('startOverlay').classList.remove('open');
+  if(isNative&&CAM){try{await CAM.requestPermissions()}catch(e){}}
+  startGps();start();
+};
+initApp();
 </script>
 </body>
 </html>
